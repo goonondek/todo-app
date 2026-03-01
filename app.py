@@ -25,9 +25,26 @@ login_manager.login_view = 'login'
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# Create tables
+# Create tables / perform simple migrations
 with app.app_context():
+    # basic schema creation
     db.create_all()
+    # ensure new columns exist in existing sqlite DBs
+    from sqlalchemy import inspect, text
+    engine = db.get_engine()
+    insp = inspect(engine)
+    if 'user' in insp.get_table_names():
+        cols = [c['name'] for c in insp.get_columns('user')]
+        if 'created_at' not in cols:
+            # add column with default current timestamp
+            engine.execute(text('ALTER TABLE user ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL'))
+    if 'task' in insp.get_table_names():
+        cols = [c['name'] for c in insp.get_columns('task')]
+        if 'created_at' not in cols:
+            engine.execute(text('ALTER TABLE task ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL'))
+        if 'updated_at' not in cols:
+            engine.execute(text('ALTER TABLE task ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL'))
+
 
 @app.route('/')
 def index():
