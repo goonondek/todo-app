@@ -26,7 +26,6 @@ class TaskForm(FlaskForm):
     due_date = DateField('Due Date', format='%Y-%m-%d')
     priority = SelectField('Priority', choices=[('Low', 'Low'), ('Medium', 'Medium'), ('High', 'High')])
     submit = SubmitField('Add Task')
-# Add this to your forms.py
 
 class UpdateProfileForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired(), Length(min=2, max=20)])

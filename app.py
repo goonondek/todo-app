@@ -3,7 +3,7 @@ from flask import Flask, render_template, redirect, url_for, flash, request, jso
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from models import db, User, Task
-from forms import RegistrationForm, LoginForm, TaskForm, UpdateProfileForm, ChangePasswordForm
+from forms import RegistrationForm, LoginForm, TaskForm, UpdateProfileForm, ChangePasswordForm, UpdateProfileForm, ChangePasswordForm
 from datetime import datetime, timedelta
 
 app = Flask(__name__)
