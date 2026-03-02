@@ -3,7 +3,7 @@ from flask import Flask, render_template, redirect, url_for, flash, request, jso
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from models import db, User, Task
-from forms import RegistrationForm, LoginForm, TaskForm
+from forms import RegistrationForm, LoginForm, TaskForm, UpdateProfileForm, ChangePasswordForm
 from datetime import datetime, timedelta
 
 app = Flask(__name__)
@@ -155,6 +155,42 @@ def toggle_task(task_id):
     task.completed = not task.completed
     db.session.commit()
     return jsonify({'completed': task.completed})
+
+@app.route('/profile', methods=['GET', 'POST'])
+@login_required
+def profile():
+    update_form = UpdateProfileForm()
+    password_form = ChangePasswordForm()
+    
+    # Handle username update
+    if update_form.validate_on_submit() and 'submit' in request.form and update_form.submit.data:
+        if update_form.username.data != current_user.username:
+            # Check if username is taken
+            existing_user = User.query.filter_by(username=update_form.username.data).first()
+            if existing_user:
+                flash('Username already taken.', 'danger')
+            else:
+                current_user.username = update_form.username.data
+                db.session.commit()
+                flash('Your username has been updated!', 'success')
+        return redirect(url_for('profile'))
+    
+    # Handle password change
+    if password_form.validate_on_submit() and 'submit' in request.form and password_form.submit.data:
+        if check_password_hash(current_user.password_hash, password_form.current_password.data):
+            current_user.password_hash = generate_password_hash(password_form.new_password.data)
+            db.session.commit()
+            flash('Your password has been updated!', 'success')
+        else:
+            flash('Current password is incorrect.', 'danger')
+        return redirect(url_for('profile'))
+    
+    # Pre-populate username field
+    update_form.username.data = current_user.username
+    
+    return render_template('profile.html', 
+                         update_form=update_form, 
+                         password_form=password_form)
 
 if __name__ == '__main__':
     app.run(debug=True)
