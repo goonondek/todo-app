@@ -29,21 +29,33 @@ def load_user(user_id):
 with app.app_context():
     # basic schema creation
     db.create_all()
-    # ensure new columns exist in existing sqlite DBs
+    # perform small, safe sqlite migrations: add missing columns with defaults
     from sqlalchemy import inspect, text
     engine = db.get_engine()
     insp = inspect(engine)
-    if 'user' in insp.get_table_names():
-        cols = [c['name'] for c in insp.get_columns('user')]
-        if 'created_at' not in cols:
-            # add column with default current timestamp
-            engine.execute(text('ALTER TABLE user ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL'))
-    if 'task' in insp.get_table_names():
-        cols = [c['name'] for c in insp.get_columns('task')]
-        if 'created_at' not in cols:
-            engine.execute(text('ALTER TABLE task ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL'))
-        if 'updated_at' not in cols:
-            engine.execute(text('ALTER TABLE task ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL'))
+
+    def _add_column_safe(conn, table_name: str, column_def: str):
+        try:
+            conn.execute(text(f'ALTER TABLE {table_name} ADD COLUMN {column_def}'))
+        except Exception:
+            # If ALTER fails (e.g. column exists or unsupported), ignore and continue
+            pass
+
+    # Only attempt migration when tables exist
+    with engine.begin() as conn:
+        tables = insp.get_table_names()
+        if 'user' in tables:
+            cols = [c['name'] for c in insp.get_columns('user')]
+            if 'created_at' not in cols:
+                # add column with CURRENT_TIMESTAMP default so existing rows get a value
+                _add_column_safe(conn, 'user', "created_at DATETIME DEFAULT (CURRENT_TIMESTAMP)")
+
+        if 'task' in tables:
+            cols = [c['name'] for c in insp.get_columns('task')]
+            if 'created_at' not in cols:
+                _add_column_safe(conn, 'task', "created_at DATETIME DEFAULT (CURRENT_TIMESTAMP)")
+            if 'updated_at' not in cols:
+                _add_column_safe(conn, 'task', "updated_at DATETIME DEFAULT (CURRENT_TIMESTAMP)")
 
 
 @app.route('/')
